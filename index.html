@@ -1,185 +1,43 @@
-Você é um gerador de PROJETO COMPLETO. Produza TODO o código em UMA única
-resposta, no formato de múltiplos arquivos usando a notação a seguir, sem comentários
-extras fora dos arquivos:
-<<<FILE:path/from/root>>>
-[conteúdo integral do arquivo]
-<<<END FILE>>>
-Requisitos gerais do projeto:
-- Stack: PHP 8+, MySQL (PDO), Bootstrap 5 (CDN), Bootstrap Icons (CDN), opcionalmente
-Alpine.js (CDN) e marked.js (CDN) para pré-visualização de Markdown.
-- Implantação: Hostinger, por FTP + phpMyAdmin. Sem Composer, sem frameworks PHP,
-sem cron/queues.
-- Segurança: prepared statements (PDO), senhas com password_hash/password_verify,
-CSRF token obrigatório em todo POST, escaping de saída (htmlspecialchars), .htaccess em
-/uploads para bloquear execução de PHP, regeneração de Session ID no login.
-- Roteamento: roteador simples por query string (?r=rota) em /public/index.php, respeitando
-BASE_URL e BASE_PATH para suportar instalação em subpasta (não exige public_html).
-- Autorização: sessão + papéis (roles) admin e aluno. Admin/equipe = CRUD completo;
-Aluno = leitura do Plano de Ação + Trilha; marca apenas os próprios checks.
-- Branding: rodapé “Powered by Mentorizze DIY” controlado por constante; logo (nome +
-URL da imagem) configuráveis.
-- Limites: SOFT_LIMIT_MENTORIAS e SOFT_LIMIT_ALUNOS no config; exibem aviso
-(não bloqueiam).
-Funcionalidades (DEVE IMPLEMENTAR):
-1) Auth & Perfis:
-- Login/Logout.
-- users: (id, name, email único, pass_hash, role [admin|aluno], must_change_password
-TINYINT, created_at).
-- Ao criar usuário via painel: senha padrão *"admin"* (hash) e must_change_password=1
-(forçar troca na primeira entrada).
-- Guards em auth.php: require_admin(), require_login(), current_user(), is_admin().
-2) Dashboard de Mentorias:
-- Lista mentorias e filtro por nível (1,2,3).
-- Acesso à página da mentoria → lista de alunos com status e % de progresso (checks
-feitos / total).
-3) Aluno (card/página):
-- Dados básicos (nome, status, nível/mentoria).
-- Onboarding simples: responsável, data, status.
-Conteúdo licenciado para Marly Vidal - 462.365.975-53
-- Plano de ação: textarea Markdown; pré-visualização com marked.js (CDN); visível ao
-aluno.
-- Trilha/Checklist: etapas por mentoria; marcação de concluído por aluno/equipe; cálculo
-de progresso.
-- Dossiê: anotações internas (histórico com autor e data/hora).
-- Calls: data, resumo, link externo de gravação.
-- Depoimentos: texto + data.
-- Contratos/Docs: LINKS (título + URL + tipo), sem upload pesado.
-- Alerta de fim de jornada: badge quando faltarem < 15 dias (cálculo em runtime sobre
-campo “fim”).
-4) Alertas no dashboard:
-- Onboarding pendente > 7 dias.
-- Inatividade > 14 dias (sem trilha_check e sem call).
-- Fim de jornada < 15 dias.
-5) Relatório rápido:
-- Página HTML imprimível por aluno (Ctrl+P → PDF) com plano, progresso, dossiê, calls,
-depoimentos e documentos.
-6) Permissões:
-- Aluno vê o próprio plano + trilha; pode marcar apenas seus checks.
-- Admin faz CRUD completo (mentorias, alunos, trilhas/etapas, checks, planos, dossiê,
-calls, depoimentos, docs, usuários).
-7) Recuperação de senha por e-mail:
-- Tela “Esqueci minha senha” (informar e-mail).
-- Envio de link com token: ${BASE_URL}/public/index.php?r=auth/reset&token=...
-- Tela de redefinição com nova senha; token expira e é invalidado após uso.
-- Suporte a MAIL_DRIVER='mail' (função nativa mail()) e MAIL_DRIVER='smtp'
-(implemente SMTP simples sem libs externas).
-Modelagem do banco (schema.sql):
-- users(id PK, name, email UNIQUE, pass_hash, role ENUM('admin','aluno'),
-must_change_password TINYINT DEFAULT 1, created_at DATETIME)
-- mentorias(id PK, nome, nivel TINYINT, status ENUM('ativa','pausada') DEFAULT 'ativa',
-created_at DATETIME)
-- alunos(id PK, nome, email, mentoria_id FK, status ENUM('ativo','inativo') DEFAULT 'ativo',
-inicio DATE, fim DATE, created_at DATETIME)
-- onboardings(id PK, aluno_id FK, responsavel, status ENUM('pendente','concluido')
-DEFAULT 'pendente', data DATE)
-- planos_acao(id PK, aluno_id FK, content_md TEXT, updated_at DATETIME)
-- trilhas(id PK, mentoria_id FK, titulo, created_at DATETIME)
-- trilha_etapas(id PK, trilha_id FK, titulo, ordem INT)
-- trilha_checks(id PK, aluno_id FK, etapa_id FK, done_at DATETIME)
-- dossies(id PK, aluno_id FK, nota TEXT, created_at DATETIME, author_id FK users.id)
-- calls(id PK, aluno_id FK, data DATE, resumo TEXT, link_gravacao VARCHAR(500))
-- depoimentos(id PK, aluno_id FK, texto TEXT, data DATE)
-Conteúdo licenciado para Marly Vidal - 462.365.975-53
-- aluno_docs(id PK, aluno_id FK, titulo, url VARCHAR(500), tipo VARCHAR(50), created_at
-DATETIME)
-- password_resets(id PK, user_id FK, token VARCHAR(255), expires_at DATETIME, used
-TINYINT DEFAULT 0, created_at DATETIME)
-- Índices nas FKs e em users.email.
-Arquitetura de diretórios (GERAR TODOS os arquivos com código funcional):
-- /public
-- index.php (roteador ?r= com BASE_URL/BASE_PATH)
-- /assets
-- styles.css (CSS extra e @media print para relatório)
-- /app
-- config.php (DB_; APP_NAME; APP_LOGO_NAME; APP_LOGO_URL; APP_COLOR;
-BASE_URL; BASE_PATH; SOFT_LIMIT_; POWERED_BY_TEXT; MAIL_DRIVER; SMTP_*;
-MAIL_FROM; MAIL_FROM_NAME)
-- db.php (PDO + função pdo())
-- helpers.php (e(), csrf_token/validate, flash, url() que respeite BASE_URL/BASE_PATH,
-redirect(), percent/date helpers)
-- auth.php (login/logout, guards, current_user, is_admin, fluxo must_change_password)
-- mailer.php (send_mail($to,$subject,$html): driver 'mail' ou 'smtp' via
-stream_socket_client/fsockopen)
-- controllers.php (CRUD users — com senha padrão "admin" + must_change_password=1;
-mentorias; alunos; trilhas/etapas; checks; planos; dossiê; calls; depoimentos; docs; fluxo de
-password reset)
-- views/
-- layout.php (Bootstrap 5 + Bootstrap Icons + opcional Alpine/marked; navbar com
-logo [APP_LOGO_URL/APP_LOGO_NAME], APP_NAME; flashes; CSRF em forms)
-- login.php
-- forgot_password.php
-- reset_password.php
-- dashboard.php
-- mentorias_list.php, mentoria_show.php
-- alunos_list.php, aluno_show.php, aluno_edit.php
-- trilha_edit.php, trilha_check.php
-- dossie_list.php
-- call_list.php
-- depoimento_list.php
-- docs_list.php
-- relatorio_aluno.php
-- /uploads
-- .htaccess (bloquear execução de PHP)
-- README.md
-- seed.sql
-- schema.sql
-- .htaccess (raiz, se necessário)
-UI/UX (Bootstrap 5):
-- Navbar, cards, tabelas responsivas, badges de alertas, progress bars para trilha.
-Conteúdo licenciado para Marly Vidal - 462.365.975-53
-- Formulários com validação básica e mensagens amigáveis.
-- Página do Aluno com abas (Bootstrap) para: Plano, Trilha, Dossiê, Calls, Depoimentos,
-Documentos.
-- Preview Markdown no Plano (marked.js).
-Regras de negócio:
-- Inatividade: usar MAX(último trilha_check, última call.data); se >14 dias → alerta.
-- Fim de jornada: se (fim - hoje) < 15 dias → badge.
-- Plano de ação: leitura por aluno; edição por admin.
-- Aluno só marca checks do próprio aluno_id.
-- Admin define trilha/etapas por mentoria e atribui a alunos.
-Saída obrigatória: GERAR TODOS OS ARQUIVOS abaixo com conteúdo completo e
-executável.
-1) /app/config.php
-2) /app/db.php
-3) /app/helpers.php
-4) /app/auth.php
-5) /app/mailer.php
-6) /app/controllers.php
-7) /app/views/layout.php
-8) /app/views/login.php
-9) /app/views/forgot_password.php
-10) /app/views/reset_password.php
-11) /app/views/dashboard.php
-12) /app/views/mentorias_list.php
-13) /app/views/mentoria_show.php
-14) /app/views/alunos_list.php
-15) /app/views/aluno_show.php
-16) /app/views/aluno_edit.php
-17) /app/views/trilha_edit.php
-18) /app/views/trilha_check.php
-19) /app/views/dossie_list.php
-20) /app/views/call_list.php
-21) /app/views/depoimento_list.php
-22) /app/views/docs_list.php
-23) /app/views/relatorio_aluno.php
-24) /public/index.php
-25) /public/assets/styles.css
-26) /uploads/.htaccess
-27) /schema.sql
-28) /seed.sql (admin padrão: admin@demo.com / senha "admin"; 1 mentoria nível 1; 3
-alunos demo; 1 trilha com etapas)
-29) /README.md (Hostinger: criar DB, importar schema/seed, editar config inclusive
-BASE_URL/BASE_PATH e APP_LOGO_*, subir por FTP, permissões de /uploads,
-configurar MAIL_DRIVER, trocar senhas, remover seed, rotinas de uso)
-Conteúdo licenciado para Marly Vidal - 462.365.975-53
-Observações críticas:
-- NÃO usar Composer nem libs externas.
-- TODAS as queries com PDO prepared statements.
-- TODAS as rotas POST com validação de CSRF.
-- HTML responsivo e compatível com hospedagem compartilhada.
-- Comentar no código “PONTOS DE EXTENSÃO” (integrações futuras: e-mail, WhatsApp,
-Google Agenda).
-- Teste mínimo: login; criação de mentoria; criação de aluno; edição de plano; criação de
-trilha/etapas; marcação de checks como aluno; registro de call e depoimento; relatório
-imprimível; fluxo completo de “esqueci minha senha” por e-mail.
-Agora GERE os arquivos, exatamente no formato solicitado.
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Mentoria</title>
+    <link href="https://jsdelivr.net" rel="stylesheet">
+    <link rel="stylesheet" href="https://jsdelivr.net">
+    <script defer src="https://jsdelivr.net"></script>
+    <style>
+        body { background-color: #f4f6f9; }
+        .sidebar { background-color: #1e293b; min-height: 100vh; color: white; }
+        .sidebar .nav-link { color: #94a3b8; }
+        .sidebar .nav-link.active { color: white; background-color: #334155; border-radius: 6px; }
+    </style>
+</head>
+<body x-data="{ isLoggedIn: false, userRole: '', currentTab: 'dashboard', email: '', password: '', mentorias: [{ id: 1, nome: 'Mentoria Marly Vidal', status: 'ativa' }], alunos: [{ id: 1, nome: 'João Silva', email: 'joao@email.com' }], novoNomeMentoria: '', novoNomeAluno: '', novoEmailAluno: '', login() { if(this.email === 'admin@admin.com' && this.password === 'admin') { this.isLoggedIn = true; this.userRole = 'admin'; } else if(this.email === 'aluno@aluno.com' && this.password === 'aluno') { this.isLoggedIn = true; this.userRole = 'aluno'; this.currentTab = 'trilha'; } else { alert('Use admin@admin.com / admin ou aluno@aluno.com / aluno'); } } }">
+    <div x-show="!isLoggedIn" class="container d-flex justify-content-center align-items-center" style="min-height: 100vh;">
+        <div class="card p-5 bg-white shadow-sm" style="width: 100%; max-width: 400px; border-radius: 12px;">
+            <div class="text-center mb-4"><i class="bi bi-person-workspace text-primary fs-1"></i><h2 class="fw-bold mt-2">Mentoria Platform</h2></div>
+            <form @submit.prevent="login()"><div class="mb-3"><label class="form-label small fw-bold">E-mail</label><input type="email" x-model="email" class="form-control" placeholder="admin@admin.com" required></div><div class="mb-3"><label class="form-label small fw-bold">Senha</label><input type="password" x-model="password" class="form-control" placeholder="••••••••" required></div><button type="submit" class="btn btn-primary w-100 mt-2">Entrar</button></form>
+            <div class="mt-4 text-center p-3 bg-light rounded small text-muted"><strong>Acessos de Teste:</strong><br>Admin: admin@admin.com / admin<br>Aluno: aluno@aluno.com / aluno</div>
+        </div>
+    </div>
+    <div x-show="isLoggedIn" class="container-fluid"><div class="row">
+        <nav class="col-md-3 col-lg-2 sidebar p-3"><div class="fw-bold fs-5 mb-4" x-text="userRole === 'admin' ? 'Painel Admin' : 'Portal Aluno'"></div>
+            <ul class="nav flex-column gap-2">
+                <template x-if="userRole === 'admin'"><li class="nav-item"><a class="nav-link" :class="{ 'active': currentTab === 'dashboard' }" href="#" @click="currentTab = 'dashboard'"><i class="bi bi-speedometer2 me-2"></i> Dashboard</a></li></template>
+                <template x-if="userRole === 'admin'"><li class="nav-item"><a class="nav-link" :class="{ 'active': currentTab === 'mentorias' }" href="#" @click="currentTab = 'mentorias'"><i class="bi bi-journal-bookmark me-2"></i> Mentorias</a></li></template>
+                <template x-if="userRole === 'admin'"><li class="nav-item"><a class="nav-link" :class="{ 'active': currentTab === 'alunos' }" href="#" @click="currentTab = 'alunos'"><i class="bi bi-people me-2"></i> Alunos</a></li></template>
+                <li class="nav-item"><a class="nav-link" :class="{ 'active': currentTab === 'trilha' }" href="#" @click="currentTab = 'trilha'"><i class="bi bi-signpost-split me-2"></i> Minha Trilha</a></li>
+                <li class="nav-item mt-4"><a class="nav-link text-danger" href="#" @click="isLoggedIn = false; email=''; password=''">Sair</a></li>
+            </ul>
+        </nav>
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
+            <div x-show="currentTab === 'dashboard' && userRole === 'admin'"><h1 class="h3 fw-bold mb-4">Visão Geral</h1><div class="row g-4"><div class="col-md-6"><div class="card p-4 bg-white shadow-sm">Total Mentorias<h2 class="fw-bold text-primary mt-2" x-text="mentorias.length"></h2></div></div><div class="col-md-6"><div class="card p-4 bg-white shadow-sm">Alunos Ativos<h2 class="fw-bold text-success mt-2" x-text="alunos.length"></h2></div></div></div></div>
+            <div x-show="currentTab === 'mentorias' && userRole === 'admin'"><h1 class="h3 fw-bold mb-4">Gerenciar Mentorias</h1><div class="card p-4 mb-4 bg-white shadow-sm"><div class="input-group"><input type="text" x-model="novoNomeMentoria" class="form-control" placeholder="Nome da Mentoria"><button class="btn btn-primary" @click="if(novoNomeMentoria){ mentorias.push({id: Date.now(), nome: novoNomeMentoria, status: 'ativa' }); novoNomeMentoria='' }">Adicionar</button></div></div><div class="card p-0 bg-white shadow-sm overflow-hidden"><table class="table mb-0 align-middle"><thead class="table-light"><tr><th>Nome</th><th>Status</th><th>Ação</th></tr></thead><tbody><template x-for="m in mentorias" :key="m.id"><tr><td x-text="m.nome"></td><td><span class="badge bg-success" x-text="m.status"></span></td><td><button class="btn btn-sm btn-outline-danger" @click="mentorias = mentorias.filter(x => x.id !== m.id)">Remover</button></td></tr></template></tbody></table></div></div>
+            <div x-show="currentTab === 'alunos' && userRole === 'admin'"><h1 class="h3 fw-bold mb-4">Gerenciar Alunos</h1><div class="card p-4 mb-4 bg-white shadow-sm"><div class="row g-3"><div class="col-md-5"><input type="text" x-model="novoNomeAluno" class="form-control" placeholder="Nome"></div><div class="col-md-5"><input type="email" x-model="novoEmailAluno" class="form-control" placeholder="E-mail"></div><div class="col-md-2"><button class="btn btn-primary w-100" @click="if(novoNomeAluno && novoEmailAluno){ alunos.push({id: Date.now(), nome: novoNomeAluno, email: novoEmailAluno}); novoNomeAluno=''; novoEmailAluno='' }">Salvar</button></div></div></div><div class="card p-0 bg-white shadow-sm overflow-hidden"><table class="table mb-0 align-middle"><thead class="table-light"><tr><th>Nome</th><th>E-mail</th><th>Ação</th></tr></thead><tbody><template x-for="a in alunos" :key="a.id"><tr><td x-text="a.nome"></td><td x-text="a.email"></td><td><button class="btn btn-sm btn-outline-danger" @click="alunos = alunos.filter(x => x.id !== a.id)">Excluir</button></td></tr></template></tbody></table></div></div>
+            <div x-show="currentTab === 'trilha'"><h1 class="h3 fw-bold mb-2">Minha Trilha</h1><div class="row g-4 mt-2"><div class="col-lg-8"><div class="card p-4 bg-white shadow-sm" x-data="{ steps: [{ id: 1, text: 'Configuração Inicial', checked: true }, { id: 2, text: 'Mapeamento de Competências', checked: false }, { id: 3, text: 'Primeira Call Estratégica', checked: false }] }"><div class="d-flex flex-column gap-3"><template x-for="step in steps" :key="step.id"><div class="form-check p-2 rounded bg-light border d-flex align-items-center"><input class="form-check-input ms-1 me-3" type="checkbox" x-model="step.checked"><label class="form-check-label" :class="{'text-decoration-line-through text-muted': step.checked}" x-text="step.text"></label></div></template></div></div></div><div class="col-lg-4"><div class="card p-4 bg-white shadow-sm text-center"><i class="bi bi-trophy text-warning fs-1 mb-2"></i><h6>Status da Jornada</h6><p class="text-muted small">Marly Vidal - Código 462.365.975-53</p><button class="btn btn-outline-secondary btn-sm w-100" onclick="window.print()">Imprimir</button></div></div></div></div>
+        </main>
+    </div></div>
+</body>
+</html>
