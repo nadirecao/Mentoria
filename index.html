@@ -1,0 +1,185 @@
+Você é um gerador de PROJETO COMPLETO. Produza TODO o código em UMA única
+resposta, no formato de múltiplos arquivos usando a notação a seguir, sem comentários
+extras fora dos arquivos:
+<<<FILE:path/from/root>>>
+[conteúdo integral do arquivo]
+<<<END FILE>>>
+Requisitos gerais do projeto:
+- Stack: PHP 8+, MySQL (PDO), Bootstrap 5 (CDN), Bootstrap Icons (CDN), opcionalmente
+Alpine.js (CDN) e marked.js (CDN) para pré-visualização de Markdown.
+- Implantação: Hostinger, por FTP + phpMyAdmin. Sem Composer, sem frameworks PHP,
+sem cron/queues.
+- Segurança: prepared statements (PDO), senhas com password_hash/password_verify,
+CSRF token obrigatório em todo POST, escaping de saída (htmlspecialchars), .htaccess em
+/uploads para bloquear execução de PHP, regeneração de Session ID no login.
+- Roteamento: roteador simples por query string (?r=rota) em /public/index.php, respeitando
+BASE_URL e BASE_PATH para suportar instalação em subpasta (não exige public_html).
+- Autorização: sessão + papéis (roles) admin e aluno. Admin/equipe = CRUD completo;
+Aluno = leitura do Plano de Ação + Trilha; marca apenas os próprios checks.
+- Branding: rodapé “Powered by Mentorizze DIY” controlado por constante; logo (nome +
+URL da imagem) configuráveis.
+- Limites: SOFT_LIMIT_MENTORIAS e SOFT_LIMIT_ALUNOS no config; exibem aviso
+(não bloqueiam).
+Funcionalidades (DEVE IMPLEMENTAR):
+1) Auth & Perfis:
+- Login/Logout.
+- users: (id, name, email único, pass_hash, role [admin|aluno], must_change_password
+TINYINT, created_at).
+- Ao criar usuário via painel: senha padrão *"admin"* (hash) e must_change_password=1
+(forçar troca na primeira entrada).
+- Guards em auth.php: require_admin(), require_login(), current_user(), is_admin().
+2) Dashboard de Mentorias:
+- Lista mentorias e filtro por nível (1,2,3).
+- Acesso à página da mentoria → lista de alunos com status e % de progresso (checks
+feitos / total).
+3) Aluno (card/página):
+- Dados básicos (nome, status, nível/mentoria).
+- Onboarding simples: responsável, data, status.
+Conteúdo licenciado para Marly Vidal - 462.365.975-53
+- Plano de ação: textarea Markdown; pré-visualização com marked.js (CDN); visível ao
+aluno.
+- Trilha/Checklist: etapas por mentoria; marcação de concluído por aluno/equipe; cálculo
+de progresso.
+- Dossiê: anotações internas (histórico com autor e data/hora).
+- Calls: data, resumo, link externo de gravação.
+- Depoimentos: texto + data.
+- Contratos/Docs: LINKS (título + URL + tipo), sem upload pesado.
+- Alerta de fim de jornada: badge quando faltarem < 15 dias (cálculo em runtime sobre
+campo “fim”).
+4) Alertas no dashboard:
+- Onboarding pendente > 7 dias.
+- Inatividade > 14 dias (sem trilha_check e sem call).
+- Fim de jornada < 15 dias.
+5) Relatório rápido:
+- Página HTML imprimível por aluno (Ctrl+P → PDF) com plano, progresso, dossiê, calls,
+depoimentos e documentos.
+6) Permissões:
+- Aluno vê o próprio plano + trilha; pode marcar apenas seus checks.
+- Admin faz CRUD completo (mentorias, alunos, trilhas/etapas, checks, planos, dossiê,
+calls, depoimentos, docs, usuários).
+7) Recuperação de senha por e-mail:
+- Tela “Esqueci minha senha” (informar e-mail).
+- Envio de link com token: ${BASE_URL}/public/index.php?r=auth/reset&token=...
+- Tela de redefinição com nova senha; token expira e é invalidado após uso.
+- Suporte a MAIL_DRIVER='mail' (função nativa mail()) e MAIL_DRIVER='smtp'
+(implemente SMTP simples sem libs externas).
+Modelagem do banco (schema.sql):
+- users(id PK, name, email UNIQUE, pass_hash, role ENUM('admin','aluno'),
+must_change_password TINYINT DEFAULT 1, created_at DATETIME)
+- mentorias(id PK, nome, nivel TINYINT, status ENUM('ativa','pausada') DEFAULT 'ativa',
+created_at DATETIME)
+- alunos(id PK, nome, email, mentoria_id FK, status ENUM('ativo','inativo') DEFAULT 'ativo',
+inicio DATE, fim DATE, created_at DATETIME)
+- onboardings(id PK, aluno_id FK, responsavel, status ENUM('pendente','concluido')
+DEFAULT 'pendente', data DATE)
+- planos_acao(id PK, aluno_id FK, content_md TEXT, updated_at DATETIME)
+- trilhas(id PK, mentoria_id FK, titulo, created_at DATETIME)
+- trilha_etapas(id PK, trilha_id FK, titulo, ordem INT)
+- trilha_checks(id PK, aluno_id FK, etapa_id FK, done_at DATETIME)
+- dossies(id PK, aluno_id FK, nota TEXT, created_at DATETIME, author_id FK users.id)
+- calls(id PK, aluno_id FK, data DATE, resumo TEXT, link_gravacao VARCHAR(500))
+- depoimentos(id PK, aluno_id FK, texto TEXT, data DATE)
+Conteúdo licenciado para Marly Vidal - 462.365.975-53
+- aluno_docs(id PK, aluno_id FK, titulo, url VARCHAR(500), tipo VARCHAR(50), created_at
+DATETIME)
+- password_resets(id PK, user_id FK, token VARCHAR(255), expires_at DATETIME, used
+TINYINT DEFAULT 0, created_at DATETIME)
+- Índices nas FKs e em users.email.
+Arquitetura de diretórios (GERAR TODOS os arquivos com código funcional):
+- /public
+- index.php (roteador ?r= com BASE_URL/BASE_PATH)
+- /assets
+- styles.css (CSS extra e @media print para relatório)
+- /app
+- config.php (DB_; APP_NAME; APP_LOGO_NAME; APP_LOGO_URL; APP_COLOR;
+BASE_URL; BASE_PATH; SOFT_LIMIT_; POWERED_BY_TEXT; MAIL_DRIVER; SMTP_*;
+MAIL_FROM; MAIL_FROM_NAME)
+- db.php (PDO + função pdo())
+- helpers.php (e(), csrf_token/validate, flash, url() que respeite BASE_URL/BASE_PATH,
+redirect(), percent/date helpers)
+- auth.php (login/logout, guards, current_user, is_admin, fluxo must_change_password)
+- mailer.php (send_mail($to,$subject,$html): driver 'mail' ou 'smtp' via
+stream_socket_client/fsockopen)
+- controllers.php (CRUD users — com senha padrão "admin" + must_change_password=1;
+mentorias; alunos; trilhas/etapas; checks; planos; dossiê; calls; depoimentos; docs; fluxo de
+password reset)
+- views/
+- layout.php (Bootstrap 5 + Bootstrap Icons + opcional Alpine/marked; navbar com
+logo [APP_LOGO_URL/APP_LOGO_NAME], APP_NAME; flashes; CSRF em forms)
+- login.php
+- forgot_password.php
+- reset_password.php
+- dashboard.php
+- mentorias_list.php, mentoria_show.php
+- alunos_list.php, aluno_show.php, aluno_edit.php
+- trilha_edit.php, trilha_check.php
+- dossie_list.php
+- call_list.php
+- depoimento_list.php
+- docs_list.php
+- relatorio_aluno.php
+- /uploads
+- .htaccess (bloquear execução de PHP)
+- README.md
+- seed.sql
+- schema.sql
+- .htaccess (raiz, se necessário)
+UI/UX (Bootstrap 5):
+- Navbar, cards, tabelas responsivas, badges de alertas, progress bars para trilha.
+Conteúdo licenciado para Marly Vidal - 462.365.975-53
+- Formulários com validação básica e mensagens amigáveis.
+- Página do Aluno com abas (Bootstrap) para: Plano, Trilha, Dossiê, Calls, Depoimentos,
+Documentos.
+- Preview Markdown no Plano (marked.js).
+Regras de negócio:
+- Inatividade: usar MAX(último trilha_check, última call.data); se >14 dias → alerta.
+- Fim de jornada: se (fim - hoje) < 15 dias → badge.
+- Plano de ação: leitura por aluno; edição por admin.
+- Aluno só marca checks do próprio aluno_id.
+- Admin define trilha/etapas por mentoria e atribui a alunos.
+Saída obrigatória: GERAR TODOS OS ARQUIVOS abaixo com conteúdo completo e
+executável.
+1) /app/config.php
+2) /app/db.php
+3) /app/helpers.php
+4) /app/auth.php
+5) /app/mailer.php
+6) /app/controllers.php
+7) /app/views/layout.php
+8) /app/views/login.php
+9) /app/views/forgot_password.php
+10) /app/views/reset_password.php
+11) /app/views/dashboard.php
+12) /app/views/mentorias_list.php
+13) /app/views/mentoria_show.php
+14) /app/views/alunos_list.php
+15) /app/views/aluno_show.php
+16) /app/views/aluno_edit.php
+17) /app/views/trilha_edit.php
+18) /app/views/trilha_check.php
+19) /app/views/dossie_list.php
+20) /app/views/call_list.php
+21) /app/views/depoimento_list.php
+22) /app/views/docs_list.php
+23) /app/views/relatorio_aluno.php
+24) /public/index.php
+25) /public/assets/styles.css
+26) /uploads/.htaccess
+27) /schema.sql
+28) /seed.sql (admin padrão: admin@demo.com / senha "admin"; 1 mentoria nível 1; 3
+alunos demo; 1 trilha com etapas)
+29) /README.md (Hostinger: criar DB, importar schema/seed, editar config inclusive
+BASE_URL/BASE_PATH e APP_LOGO_*, subir por FTP, permissões de /uploads,
+configurar MAIL_DRIVER, trocar senhas, remover seed, rotinas de uso)
+Conteúdo licenciado para Marly Vidal - 462.365.975-53
+Observações críticas:
+- NÃO usar Composer nem libs externas.
+- TODAS as queries com PDO prepared statements.
+- TODAS as rotas POST com validação de CSRF.
+- HTML responsivo e compatível com hospedagem compartilhada.
+- Comentar no código “PONTOS DE EXTENSÃO” (integrações futuras: e-mail, WhatsApp,
+Google Agenda).
+- Teste mínimo: login; criação de mentoria; criação de aluno; edição de plano; criação de
+trilha/etapas; marcação de checks como aluno; registro de call e depoimento; relatório
+imprimível; fluxo completo de “esqueci minha senha” por e-mail.
+Agora GERE os arquivos, exatamente no formato solicitado.
